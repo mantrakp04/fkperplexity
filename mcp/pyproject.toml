@@ -1,12 +1,13 @@
 [project]
 name = "fkperplexity"
 version = "0.1.0"
-description = "Add your description here"
+description = "FastMCP-powered browser automation service for automated web form filling with real-time status tracking and session management"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "browser-use>=0.6.1",
     "fastmcp>=2.11.3",
     "python-dotenv>=1.1.1",
-    "requests>=2.32.5"
+    "requests>=2.32.5",
+    "pydantic>=2.0.0"
 ]
