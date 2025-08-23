@@ -18,8 +18,9 @@ def get_or_create_browser_session(session_id: str) -> BrowserSession:
         device_scale_factor=1.5
     )
 
+@mcp.custom_route(path="/automated_form_filler", method="POST")
 @mcp.tool(name="automated_form_filler", description="Automatically fill out web forms using browser automation with provided form data and instructions")
-def main(id: str, form_name: str = "DS-160", form_data: str = """
+def main(id: str, form_name: str = "DS-160", form_url: str = "ceac.state.gov/genniv/", form_data: str = """
 Example Input:
 
 Personal Information:
@@ -68,7 +69,7 @@ Security & Background (Example Answers):
 - Have you ever been arrested? No
 - Do you have specialized skills in weapons/explosives? No
 - Have you ever been involved in terrorist activities? No
-""", form_url: str = "ceac.state.gov/genniv/"):
+"""):
     try:
         # Create language model instance
         # llm = ChatOpenAI(
@@ -96,8 +97,6 @@ Security & Background (Example Answers):
         FORM DATA TO USE:
         {form_data}"""
         
-        print(f"🤖 Creating automation agent for session: {id}")
-        
         # Get or create browser session
         browser_session = get_or_create_browser_session(id)
         
@@ -110,8 +109,7 @@ Security & Background (Example Answers):
                 agent = Agent(
                     task=instructions,
                     llm=llm,
-                    browser_session=browser_session,
-                    verbose=True,
+                    browser_session=browser_session
                 )
 
                 # Execute the automation
