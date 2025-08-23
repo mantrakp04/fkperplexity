@@ -6,8 +6,8 @@ from browser_use.llm.anthropic.chat import ChatAnthropic
 from browser_use.llm.openai.chat import ChatOpenAI
 
 # Configuration constants
-DS160_URL = "https://ceac.state.gov/genniv/"
-MODEL_NAME = "gpt-4.1"
+DS160_URL = "ceac.state.gov/genniv/"
+MODEL_NAME = "gpt-4o"
 
 # Comprehensive example DS-160 data (fictional for demonstration purposes)
 EXAMPLE_DS160_DATA = """
@@ -73,6 +73,8 @@ def main():
         browser_profile = BrowserProfile(
             # Set viewport to ensure proper zoom scaling
             viewport={"width": 1280, "height": 1024},
+            minimum_wait_page_load_time=0.5,
+            maximum_wait_page_load_time=2.0,
             # Add custom Chrome args for 125% zoom and disable popups
             args=[
                 "--force-device-scale-factor=1.50",  # 150% zoom
@@ -96,9 +98,9 @@ def main():
         # )
         
         # Create automation instructions
-        instructions = """Fill out the DS-160 US visa form at {DS160_URL} using the provided example data. Prefer using the click tool. Use multi tool calling to quickly fill out the form. If the screen is too small, use the console tool to zoom in.
-        Use the following example data:\n
-        """ + EXAMPLE_DS160_DATA
+        instructions = """Fill out the DS-160 US visa form at ceac.state.gov/genniv/ using the provided example data. Prefer using the click tool. Never stop until you are done. If you hit captcha retry.
+        Use the following example data :\n
+        """ + EXAMPLE_DS160_DATA + "ceac.state.gov/genniv/"
         print("🤖 Creating automation agent...")
         
         # Create and run the automation agent
@@ -110,7 +112,7 @@ def main():
         )
 
         # Execute the automation
-        result = agent.run_sync()
+        result = agent.run_sync(max_steps=1000)
         
         print("✅ Automation completed successfully!")
         print(f"📋 Result: {result}")
