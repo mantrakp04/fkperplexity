@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visa Application Assistant</title>
+    <!-- Using Vapi REST API directly -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            margin: 0 auto 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+            font-weight: bold;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            line-height: 1.5;
+        }
+        
+        .call-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+        
+        .call-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .call-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .end-button {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+        }
+        
+        .end-button:hover {
+            box-shadow: 0 10px 20px rgba(255, 107, 107, 0.3);
+        }
+        
+        .status {
+            margin-top: 30px;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+        
+        .status.idle {
+            background: #f8f9fa;
+            color: #6c757d;
+        }
+        
+        .status.calling {
+            background: #d4edda;
+            color: #155724;
+            animation: pulse 2s infinite;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        
+        .instructions {
+            background: #e3f2fd;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 30px;
+            text-align: left;
+        }
+        
+        .instructions h3 {
+            color: #1976d2;
+            margin-bottom: 15px;
+        }
+        
+        .instructions ul {
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .instructions li {
+            margin-bottom: 8px;
+            list-style-position: inside;
+        }
+        
+        .config-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            text-align: left;
+        }
+        
+        .config-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e9ecef;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .save-config {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        
+        .save-config:hover {
+            background: #218838;
+        }
+        
+        .language-info {
+            background: #e8f4f8;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .language-info p {
+            margin: 0;
+            color: #2c5282;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e9ecef;
+            border-radius: 5px;
+            font-size: 14px;
+            background: white;
+            transition: border-color 0.3s ease;
+        }
+        
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .language-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">VA</div>
+        <h1>Visa Application Assistant</h1>
+        <p class="subtitle">Complete your visa application through a natural conversation with our AI assistant.</p>
+        
+        <div class="config-section">
+            <h3>Configuration <span style="color: green; font-size: 14px;">(Ready)</span></h3>
+            <div class="form-group">
+                <label for="vapiKey">Vapi Public Key:</label>
+                <input type="text" id="vapiKey" placeholder="Loading configuration..." readonly>
+            </div>
+            <div class="form-group">
+                <label for="webhookUrl">Webhook URL:</label>
+                <input type="text" id="webhookUrl" placeholder="Loading configuration..." readonly>
+            </div>
+            <button class="save-config" onclick="editConfig()" id="editConfigBtn">Edit Configuration</button>
+            <button class="save-config" onclick="saveConfig()" id="saveConfigBtn" style="display:none; background: #28a745;">Save Changes</button>
+        </div>
+        
+        <div class="config-section">
+            <h3>🌐 Language Selection</h3>
+            <div class="form-group">
+                <label for="languageSelect">Choose Your Language:</label>
+                <select id="languageSelect" onchange="changeLanguage()">
+                    <option value="en-US">🇺🇸 English (United States)</option>
+                    <option value="es-ES">🇪🇸 Español (España)</option>
+                    <option value="fr-FR">🇫🇷 Français (France)</option>
+                    <option value="de-DE">🇩🇪 Deutsch (Deutschland)</option>
+                    <option value="it-IT">🇮🇹 Italiano (Italia)</option>
+                    <option value="pt-BR">🇧🇷 Português (Brasil)</option>
+                    <option value="zh-CN">🇨🇳 中文 (简体)</option>
+                    <option value="ja-JP">🇯🇵 日本語</option>
+                    <option value="ko-KR">🇰🇷 한국어</option>
+                    <option value="hi-IN">🇮🇳 हिंदी</option>
+                    <option value="ar-SA">🇸🇦 العربية</option>
+                    <option value="ru-RU">🇷🇺 Русский</option>
+                </select>
+            </div>
+            <div class="language-info">
+                <p id="languageInfo">🎤 Voice Assistant will speak and understand English (US)</p>
+            </div>
+        </div>
+        
+        <div>
+            <button id="startCall" class="call-button" onclick="startCall()">
+                🎤 Start Visa Interview
+            </button>
+            <button id="endCall" class="call-button end-button" onclick="endCall()" disabled>
+                📞 End Call
+            </button>
+        </div>
+        
+        <div id="status" class="status idle">
+            Ready to start your visa interview
+        </div>
+        
+        <div class="instructions">
+            <h3>How it works:</h3>
+            <ul>
+                <li>Click "Start Visa Interview" to begin</li>
+                <li>Allow microphone access when prompted by your browser</li>
+                <li>Speak directly into your microphone - no phone needed!</li>
+                <li>The AI assistant will guide you through all visa application questions</li>
+                <li>The conversation typically takes 10-15 minutes</li>
+                <li>All information is securely stored and can be used to fill your visa application</li>
+                <li>You can end the call at any time using the "End Call" button</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Load VAPI Web SDK with ESM import -->
+    <script type="module">
+        try {
+            console.log('Loading VAPI SDK...');
+            
+            // Import VAPI SDK as ES module
+            const { default: Vapi } = await import('https://esm.sh/@vapi-ai/web@2.3.9');
+            
+            // Make it globally available
+            window.Vapi = Vapi;
+            
+            console.log('VAPI SDK loaded successfully');
+            
+            // Dispatch event when loaded
+            window.dispatchEvent(new Event('vapiLoaded'));
+        } catch (error) {
+            console.error('Failed to load VAPI SDK:', error);
+            
+            // Try fallback CDN
+            try {
+                console.log('Trying fallback CDN...');
+                const { default: Vapi } = await import('https://skypack.dev/@vapi-ai/web@2.3.9');
+                window.Vapi = Vapi;
+                console.log('VAPI SDK loaded from fallback CDN');
+                window.dispatchEvent(new Event('vapiLoaded'));
+            } catch (fallbackError) {
+                console.error('All CDN attempts failed:', fallbackError);
+                window.dispatchEvent(new Event('vapiLoadFailed'));
+            }
+        }
+    </script>
+
+    <script>
+        // Multi-language configuration based on NIA research
+        const LANGUAGE_CONFIG = {
+            'en-US': {
+                name: 'English (United States)',
+                flag: '🇺🇸',
+                transcriber: {
+                    provider: "deepgram",
+                    model: "nova-2",
+                    language: "en-US"
+                },
+                voice: {
+                    provider: "11labs",
+                    voiceId: "21m00Tcm4TlvDq8ikWAM"
+                },
+                systemPromptSuffix: "Conduct the interview in English. Be professional and clear."
+            },
+            'es-ES': {
+                name: 'Español (España)',
+                flag: '🇪🇸',
+                transcriber: {
+                    provider: "deepgram",
+                    model: "nova-2", 
+                    language: "es"
+                },
+                voice: {
+                    provider: "11labs",
+                    voiceId: "pNInz6obpgDQGcFmaJgB"
+                },
+                systemPromptSuffix: "Conduzca la entrevista en español. Sea profesional y claro. Utilice terminología apropiada para solicitudes de visa."
+            },
+            'fr-FR': {
+                name: 'Français (France)',
+                flag: '🇫🇷',
+                transcriber: {
+                    provider: "deepgram",
+                    model: "nova-2",
+                    language: "fr"
+                },
+                voice: {
+                    provider: "11labs",
+                    voiceId: "AZnzlk1XvdvUeBnXmlld"
+                },
+                systemPromptSuffix: "Menez l'entretien en français. Soyez professionnel et clair. Utilisez la terminologie appropriée pour les demandes de visa."
+            },
+            'de-DE': {
+                name: 'Deutsch (Deutschland)',
+                flag: '🇩🇪',
+                transcriber: {
+                    provider: "deepgram",
+                    model: "nova-2",
+                    language: "de"
+                },
+                voice: {
+                    provider: "11labs",
+                    voiceId: "EXAVITQu4vr4xnSDxMaL"
+                },
+                systemPromptSuffix: "Führen Sie das Interview auf Deutsch durch. Seien Sie professionell und klar. Verwenden Sie angemessene Terminologie für Visa-Anträge."
+            },
+            'it-IT': {
+                name: 'Italiano (Italia)',
+                flag: '🇮🇹',
+                transcriber: {
+                    provider: "deepgram",
+                    model: "nova-2",
+                    language: "it"
+                },
+                voice: {
+                    provider: "11labs",
+                    voiceId: "XB0fDUnXU5powFXDhCwa"
+                },
+                systemPromptSuffix: "Conduci l'intervista in italiano. Sii professionale e chiaro. Usa terminologia appropriata per le richieste di visto."
+            },
+            'pt-BR': {
+                name: 'Português (Brasil)', 
+                flag: '🇧🇷',
+                transcriber: {
+                    provider: "deepgram",
+                    model: "nova-2",
+                    language: "pt"
+                },
+                voice: {
+                    provider: "11labs",
+                    voiceId: "21m00Tcm4TlvDq8ikWAM"
+                },
+                systemPromptSuffix: "Conduza a entrevista em português brasileiro. Seja profissional e claro. Use terminologia apropriada para pedidos de visto."
+            },
+            'zh-CN': {
+                name: '中文 (简体)',
+                flag: '🇨🇳',
+                transcriber: {
+                    provider: "deepgram",
+                    model: "nova-2",
+                    language: "zh"
+                },
+                voice: {
+                    provider: "11labs",
+                    voiceId: "AZnzlk1XvdvUeBnXmlld"
+                },
+                systemPromptSuffix: "用简体中文进行面试。保持专业和清晰。使用适当的签证申请术语。"
+            },
+            'ja-JP': {
+                name: '日本語',
+                flag: '🇯🇵',
+                transcriber: {
+                    provider: "deepgram",
+                    model: "nova-2",
+                    language: "ja"
+                },
+                voice: {
+                    provider: "11labs",
+                    voiceId: "EXAVITQu4vr4xnSDxMaL"
+                },
+                systemPromptSuffix: "日本語で面接を実施してください。専門的で明確にしてください。ビザ申請に適した用語を使用してください。"
+            },
+            'ko-KR': {
+                name: '한국어',
+                flag: '🇰🇷',
+                transcriber: {
+                    provider: "deepgram", 
+                    model: "nova-2",
+                    language: "ko"
+                },
+                voice: {
+                    provider: "11labs",
+                    voiceId: "21m00Tcm4TlvDq8ikWAM"
+                },
+                systemPromptSuffix: "한국어로 인터뷰를 진행하세요. 전문적이고 명확하게 하세요. 비자 신청에 적절한 용어를 사용하세요."
+            },
+            'hi-IN': {
+                name: 'हिंदी',
+                flag: '🇮🇳',
+                transcriber: {
+                    provider: "deepgram",
+                    model: "nova-2",
+                    language: "hi"
+                },
+                voice: {
+                    provider: "11labs",
+                    voiceId: "XB0fDUnXU5powFXDhCwa"
+                },
+                systemPromptSuffix: "हिंदी में साक्षात्कार आयोजित करें। पेशेवर और स्पष्ट रहें। वीज़ा आवेदन के लिए उपयुक्त शब्दावली का उपयोग करें।"
+            },
+            'ar-SA': {
+                name: 'العربية',
+                flag: '🇸🇦',
+                transcriber: {
+                    provider: "deepgram",
+                    model: "nova-2",
+                    language: "ar"
+                },
+                voice: {
+                    provider: "11labs",
+                    voiceId: "AZnzlk1XvdvUeBnXmlld"
+                },
+                systemPromptSuffix: "قم بإجراء المقابلة باللغة العربية. كن مهنياً وواضحاً. استخدم المصطلحات المناسبة لطلبات التأشيرة."
+            },
+            'ru-RU': {
+                name: 'Русский',
+                flag: '🇷🇺',
+                transcriber: {
+                    provider: "deepgram",
+                    model: "nova-2",
+                    language: "ru"
+                },
+                voice: {
+                    provider: "playht",
+                    voiceId: "jennifer"
+                },
+                systemPromptSuffix: "Проведите интервью на русском языке. Будьте профессиональны и ясны. Используйте подходящую терминологию для визовых заявлений."
+            }
+        };
+
+        class DS160VapiWebInterface {
+            constructor() {
+                this.vapi = null;
+                this.config = {
+                    publicKey: '',
+                    webhookUrl: ''
+                };
+                this.isCallActive = false;
+                this.selectedLanguage = 'en-US';
+                this.init();
+            }
+            
+            async init() {
+                await this.loadConfig();
+                this.setupVapiClient();
+                this.setupEventListeners();
+                this.updateUI();
+                
+                // Clear error count on init so user can test fresh
+                localStorage.removeItem('vapi_error_count');
+            }
+            
+            async loadConfig() {
+                // Set default config first
+                this.config = {
+                    publicKey: localStorage.getItem('vapi_public_key') || '1bb2e750-95fc-4fda-a0db-bd3479e1aa50',
+                    webhookUrl: localStorage.getItem('webhook_url') || 'http://127.0.0.1:3000/webhook/vapi'
+                };
+                
+                try {
+                    // Try to load from server with explicit URL and timeout
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 3000);
+                    
+                    const configUrl = 'http://127.0.0.1:3000/api/config';
+                    console.log('Loading config from:', configUrl);
+                    
+                    const response = await fetch(configUrl, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Cache-Control': 'no-cache'
+                        },
+                        signal: controller.signal
+                    });
+                    
+                    clearTimeout(timeoutId);
+                    
+                    if (response.ok) {
+                        const serverConfig = await response.json();
+                        console.log('Server config loaded:', serverConfig);
+                        
+                        if (serverConfig.vapiPublicKey) {
+                            this.config.publicKey = serverConfig.vapiPublicKey;
+                        }
+                        if (serverConfig.webhookUrl) {
+                            this.config.webhookUrl = serverConfig.webhookUrl;
+                        }
+                    }
+                } catch (error) {
+                    console.warn('Could not load server config, using fallback:', error.message);
+                }
+            }
+            
+            setupVapiClient() {
+                if (this.config.publicKey && window.Vapi) {
+                    console.log('Initializing VAPI client with key:', this.config.publicKey.substring(0, 8) + '...');
+                    this.vapi = new window.Vapi(this.config.publicKey);
+                    console.log('VAPI Web client initialized');
+                    
+                    // Test if the API key format is valid
+                    if (!this.config.publicKey.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+                        console.warn('API key format seems invalid. Expected UUID format.');
+                    }
+                }
+            }
+            
+            setupEventListeners() {
+                if (!this.vapi) return;
+                
+                this.vapi.on('call-start', () => {
+                    console.log('Call started');
+                    this.isCallActive = true;
+                    
+                    // Clear error count on successful call start
+                    localStorage.removeItem('vapi_error_count');
+                    
+                    this.updateStatus('🎤 Call started! You can now speak...', 'calling');
+                    document.getElementById('startCall').disabled = true;
+                    document.getElementById('endCall').disabled = false;
+                });
+                
+                this.vapi.on('call-end', () => {
+                    console.log('Call ended');
+                    this.isCallActive = false;
+                    this.updateStatus('Call ended. Thank you for your visa interview!', 'idle');
+                    this.cleanup();
+                });
+                
+                this.vapi.on('speech-start', () => {
+                    console.log('User started speaking');
+                    this.updateStatus('🎤 Listening to you...', 'calling');
+                });
+                
+                this.vapi.on('speech-end', () => {
+                    console.log('User stopped speaking');
+                    this.updateStatus('🤖 Assistant is responding...', 'calling');
+                });
+                
+                this.vapi.on('message', (message) => {
+                    console.log('Message received:', message);
+                    if (message.type === 'transcript' && message.transcriptType === 'final') {
+                        console.log(`${message.role}: ${message.transcript}`);
+                    }
+                });
+                
+                this.vapi.on('error', (error) => {
+                    console.error('VAPI Error:', error);
+                    console.log('Full error object:', JSON.stringify(error, null, 2));
+                    
+                    // Try to extract more details from the error
+                    let errorDetails = 'Voice call error occurred';
+                    if (error && error.error && error.error.status) {
+                        errorDetails += ` (HTTP ${error.error.status})`;
+                    }
+                    if (error && error.type) {
+                        errorDetails += ` - ${error.type}`;
+                    }
+                    if (error && error.stage) {
+                        errorDetails += ` at stage: ${error.stage}`;
+                    }
+                    
+                    // Only show error if not already in an error state
+                    const statusElement = document.getElementById('status');
+                    if (!statusElement || !statusElement.className.includes('error')) {
+                        this.updateStatus(errorDetails, 'error');
+                    }
+                    this.cleanup();
+                });
+            }
+            
+            editConfig() {
+                document.getElementById('vapiKey').readOnly = false;
+                document.getElementById('webhookUrl').readOnly = false;
+                document.getElementById('editConfigBtn').style.display = 'none';
+                document.getElementById('saveConfigBtn').style.display = 'inline-block';
+                
+                this.updateStatus('Configuration editing enabled - make your changes and save', 'idle');
+            }
+            
+            saveConfig() {
+                this.config.publicKey = document.getElementById('vapiKey').value;
+                this.config.webhookUrl = document.getElementById('webhookUrl').value;
+                
+                localStorage.setItem('vapi_public_key', this.config.publicKey);
+                localStorage.setItem('webhook_url', this.config.webhookUrl);
+                
+                // Reinitialize VAPI client with new key
+                this.setupVapiClient();
+                this.setupEventListeners();
+                
+                document.getElementById('vapiKey').readOnly = true;
+                document.getElementById('webhookUrl').readOnly = true;
+                document.getElementById('editConfigBtn').style.display = 'inline-block';
+                document.getElementById('saveConfigBtn').style.display = 'none';
+                
+                this.updateUI();
+                this.updateStatus('Configuration saved successfully!', 'idle');
+                
+                setTimeout(() => {
+                    this.updateStatus('Ready to start your DS-160 interview', 'idle');
+                }, 2000);
+            }
+            
+            updateUI() {
+                document.getElementById('vapiKey').value = this.config.publicKey;
+                document.getElementById('webhookUrl').value = this.config.webhookUrl;
+                
+                // Load saved language preference
+                this.selectedLanguage = localStorage.getItem('selected_language') || 'en-US';
+                document.getElementById('languageSelect').value = this.selectedLanguage;
+                this.updateLanguageInfo();
+                
+                const canStartCall = this.config.publicKey && this.vapi;
+                document.getElementById('startCall').disabled = !canStartCall || this.isCallActive;
+                
+                if (this.config.publicKey) {
+                    this.updateStatus('Configuration ready ✓', 'idle');
+                    setTimeout(() => {
+                        this.updateStatus('Ready to start your visa interview', 'idle');
+                    }, 2000);
+                } else {
+                    this.updateStatus('Please configure your Vapi public key', 'error');
+                }
+            }
+            
+            updateLanguageInfo() {
+                const langConfig = LANGUAGE_CONFIG[this.selectedLanguage];
+                const infoElement = document.getElementById('languageInfo');
+                if (langConfig && infoElement) {
+                    infoElement.textContent = `🎤 Voice Assistant will speak and understand ${langConfig.name}`;
+                }
+            }
+            
+            async startCall() {
+                if (!this.vapi) {
+                    this.updateStatus('Please configure your Vapi public key first', 'error');
+                    return;
+                }
+                
+                if (this.isCallActive) {
+                    this.updateStatus('Call is already active', 'error');
+                    return;
+                }
+                
+                                try {
+                    this.updateStatus('Starting web call... Please allow microphone access if prompted.', 'calling');
+                    
+                    // Get language configuration
+                    const langConfig = LANGUAGE_CONFIG[this.selectedLanguage];
+                    
+                    // Debug: log the configuration being used
+                    console.log('Selected language:', this.selectedLanguage);
+                    console.log('Language config:', langConfig);
+                    console.log('VAPI public key:', this.config.publicKey);
+                    
+                    const firstMessages = {
+                        'en-US': "Hello! I'm your visa application assistant. Let's start with your full name - what is your complete name?",
+                        'es-ES': "¡Hola! Soy su asistente de solicitud de visa. Comencemos con su nombre completo: ¿cuál es su nombre completo?",
+                        'fr-FR': "Bonjour ! Je suis votre assistant de demande de visa. Commençons par votre nom complet - quel est votre nom complet ?",
+                        'de-DE': "Hallo! Ich bin Ihr Visa-Antrag-Assistent. Beginnen wir mit Ihrem vollständigen Namen - wie lautet Ihr vollständiger Name?",
+                        'it-IT': "Ciao! Sono il tuo assistente per la richiesta di visto. Iniziamo con il tuo nome completo - qual è il tuo nome completo?",
+                        'pt-BR': "Olá! Sou seu assistente de solicitação de visto. Vamos começar com seu nome completo - qual é o seu nome completo?",
+                        'zh-CN': "您好！我是您的签证申请助手。让我们从您的全名开始 - 您的全名是什么？",
+                        'ja-JP': "こんにちは！私はあなたのビザ申請アシスタントです。まず、お名前から始めましょう。お名前をフルネームで教えてください。",
+                        'ko-KR': "안녕하세요! 비자 신청 어시스턴트입니다. 성명부터 시작하겠습니다. 전체 성명이 무엇인가요?",
+                        'hi-IN': "नमस्ते! मैं आपका वीज़ा आवेदन सहायक हूँ। आइए आपके पूरे नाम से शुरू करते हैं - आपका पूरा नाम क्या है?",
+                        'ar-SA': "مرحباً! أنا مساعد طلب التأشيرة الخاص بك। دعنا نبدأ باسمك الكامل - ما هو اسمك الكامل؟",
+                        'ru-RU': "Здравствуйте! Я ваш помощник по заявлению на визу. Начнем с вашего полного имени - как ваше полное имя?"
+                    };
+                    
+                    // Prepare assistant configuration with correct VAPI format
+                    const assistantConfig = {
+                        model: {
+                            provider: "openai",
+                            model: "gpt-3.5-turbo",
+                            messages: [
+                                {
+                                    role: "system",
+                                    content: "You are a helpful visa application assistant. Be professional and ask one question at a time."
+                                }
+                            ]
+                        },
+                        voice: {
+                            provider: "openai",
+                            voiceId: "shimmer"
+                        },
+                        firstMessage: "Hello! I'm your visa application assistant. Let's start with your full name - what is your complete name?"
+                    };
+                    
+                    // Debug: log the full configuration being sent
+                    console.log('Assistant configuration:', JSON.stringify(assistantConfig, null, 2));
+                    
+                    // Try ultra-minimal configuration first if previous attempts failed
+                    if (localStorage.getItem('vapi_error_count') > 2) {
+                        console.log('Trying ultra-minimal configuration...');
+                        await this.vapi.start({
+                            model: {
+                                provider: "openai",
+                                model: "gpt-3.5-turbo",
+                                messages: [
+                                    {
+                                        role: "system",
+                                        content: "You are a helpful assistant."
+                                    }
+                                ]
+                            }
+                        });
+                    } else {
+                        // Use OpenAI voice provider (should work with VAPI public key only)
+                        await this.vapi.start(assistantConfig);
+                    }
+                                        
+                } catch (error) {
+                    console.error('Error starting call:', error);
+                    
+                    // Track error count for fallback logic
+                    const errorCount = parseInt(localStorage.getItem('vapi_error_count') || '0') + 1;
+                    localStorage.setItem('vapi_error_count', errorCount.toString());
+                    console.log('VAPI error count:', errorCount);
+                    
+                    let errorMessage = 'Failed to start call: ';
+                    if (error.message && error.message.includes('microphone')) {
+                        errorMessage += 'Please allow microphone access and try again.';
+                    } else if (error.type === 'start-method-error') {
+                        errorMessage += 'Assistant configuration error. ';
+                        if (errorCount <= 2) {
+                            errorMessage += 'Try refreshing the page and clicking the button again.';
+                        } else {
+                            errorMessage += 'Trying minimal configuration mode.';
+                        }
+                    } else {
+                        errorMessage += error.message || 'Please check your configuration.';
+                    }
+                    
+                    this.updateStatus(errorMessage, 'error');
+                    this.cleanup();
+                }
+            }
+            
+            async endCall() {
+                if (!this.vapi || !this.isCallActive) {
+                    this.cleanup();
+                    return;
+                }
+                
+                try {
+                    await this.vapi.stop();
+                    this.updateStatus('Ending call...', 'calling');
+                } catch (error) {
+                    console.error('Error ending call:', error);
+                    this.updateStatus('Error ending call', 'error');
+                    this.cleanup();
+                }
+            }
+            
+            updateStatus(message, type) {
+                const statusElement = document.getElementById('status');
+                statusElement.textContent = message;
+                statusElement.className = `status ${type}`;
+            }
+            
+            cleanup() {
+                this.isCallActive = false;
+                document.getElementById('startCall').disabled = false;
+                document.getElementById('endCall').disabled = true;
+            }
+            
+            // Reset error count for debugging
+            resetErrorCount() {
+                localStorage.removeItem('vapi_error_count');
+                console.log('Error count reset');
+                this.updateStatus('Error count reset - ready to try again', 'idle');
+            }
+        }
+        
+        // Initialize the interface
+        let ds160Interface;
+        
+        // Wait for VAPI SDK to load
+        function initializeApp() {
+            if (window.Vapi) {
+                console.log('VAPI SDK loaded successfully');
+                ds160Interface = new DS160VapiWebInterface();
+            } else {
+                console.log('Waiting for VAPI SDK to load...');
+                setTimeout(initializeApp, 100); // Retry every 100ms
+            }
+        }
+
+        // Start initialization when VAPI is loaded
+        window.addEventListener('vapiLoaded', initializeApp);
+        
+        // Handle VAPI SDK load failure
+        window.addEventListener('vapiLoadFailed', () => {
+            console.error('VAPI SDK failed to load from all CDNs');
+            const statusElement = document.getElementById('status');
+            if (statusElement) {
+                statusElement.textContent = 'Failed to load voice SDK. Please refresh the page.';
+                statusElement.className = 'status error';
+            }
+        });
+        
+        // Fallback: start after page load with delay
+        window.addEventListener('load', () => {
+            setTimeout(initializeApp, 1000);
+        });
+        
+        // Global functions for button clicks
+        function startCall() {
+            if (ds160Interface) {
+            ds160Interface.startCall();
+            }
+        }
+        
+        function endCall() {
+            if (ds160Interface) {
+            ds160Interface.endCall();
+            }
+        }
+        
+        function editConfig() {
+            if (ds160Interface) {
+            ds160Interface.editConfig();
+            }
+        }
+        
+        function saveConfig() {
+            if (ds160Interface) {
+            ds160Interface.saveConfig();
+            }
+        }
+        
+        function changeLanguage() {
+            if (ds160Interface) {
+                const selectedLang = document.getElementById('languageSelect').value;
+                ds160Interface.selectedLanguage = selectedLang;
+                localStorage.setItem('selected_language', selectedLang);
+                ds160Interface.updateLanguageInfo();
+                
+                // Update status to show language change
+                const langConfig = LANGUAGE_CONFIG[selectedLang];
+                ds160Interface.updateStatus(`Language changed to ${langConfig.name} ${langConfig.flag}`, 'idle');
+                
+                setTimeout(() => {
+                    ds160Interface.updateStatus('Ready to start your visa interview', 'idle');
+                }, 2000);
+            }
+        }
+        
+        // Debug function - access via browser console: resetVapiErrors()
+        function resetVapiErrors() {
+            if (ds160Interface) {
+                ds160Interface.resetErrorCount();
+            }
+        }
+    </script>
+</body>
+</html>

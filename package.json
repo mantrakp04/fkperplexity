@@ -1,0 +1,45 @@
+{
+  "name": "ds160-vapi-agent",
+  "version": "1.0.0",
+  "description": "Voice agent for collecting DS-160 visa application information using Vapi and Convex",
+  "main": "index.ts",
+  "scripts": {
+    "dev": "bun run --hot index.ts",
+    "start": "bun run index.ts",
+    "build": "bun build index.ts --outdir ./dist",
+    "webhook": "bun run webhook-server.ts",
+    "convex:dev": "convex dev",
+    "convex:deploy": "convex deploy",
+    "test": "bun test"
+  },
+  "keywords": [
+    "vapi",
+    "voice-ai",
+    "ds160",
+    "visa",
+    "convex",
+    "typescript"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "@vapi-ai/server-sdk": "^0.10.0",
+    "@vapi-ai/web": "^2.3.9",
+    "convex": "^1.13.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "helmet": "^7.0.0",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.13",
+    "@types/express": "^4.17.17",
+    "bun-types": "latest",
+    "typescript": "^5.2.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "bun": ">=1.0.0"
+  }
+}
