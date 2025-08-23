@@ -1,5 +1,5 @@
 import time
-from typing import Dict
+from typing import Dict, List
 from browser_use import Agent, BrowserSession
 from browser_use.llm.anthropic.chat import ChatAnthropic
 from fastmcp import FastMCP
@@ -23,12 +23,21 @@ class AutomationStatus(BaseModel):
     result: str = None
     error: str = None
 
+class FormAlert(BaseModel):
+    session_id: str
+    field_name: str
+    expected_value: str
+    actual_value: str
+    reason: str
+    timestamp: float = Field(default_factory=time.time)
+
 mcp = FastMCP(
     name="Browser Automation Service", 
     instructions="Automated web form filling service with real-time status tracking."
 )
 
 automation_status: Dict[str, AutomationStatus] = {}
+form_alerts: List[FormAlert] = []
 
 @mcp.custom_route("/tracking/status/{session_id}", methods=["GET"])
 async def get_automation_status(request: Request) -> JSONResponse:
@@ -49,6 +58,54 @@ async def get_all_automation_status(request: Request) -> JSONResponse:
     return JSONResponse({
         "sessions": {k: v.dict() for k, v in automation_status.items()},
         "total_sessions": len(automation_status)
+    })
+
+def alert_uncertain_data(field_name: str, expected_value: str, actual_value: str, reason: str, session_id: str = "default_session") -> str:
+    """
+    Alert when form data is uncertain or placeholder values are used.
+    Use this tool when you encounter missing, unclear, or questionable data while filling forms.
+    This helps flag fields that may need manual review or correction.
+    
+    Args:
+        field_name: The name or identifier of the form field
+        expected_value: What value should ideally be entered
+        actual_value: What value was actually entered (e.g., "N/A", "Unknown", placeholder data)
+        reason: Explanation of why this data is uncertain (e.g., "missing from provided data", "using placeholder")
+        session_id: The automation session ID (defaults to "default_session")
+    
+    Returns:
+        Confirmation message about the alert being logged
+    """
+    alert = FormAlert(
+        session_id=session_id,
+        field_name=field_name,
+        expected_value=expected_value,
+        actual_value=actual_value,
+        reason=reason
+    )
+    
+    form_alerts.append(alert)
+    
+    return f"Alert logged: Field '{field_name}' flagged for review. Used '{actual_value}' but expected '{expected_value}'. Reason: {reason}"
+
+@mcp.custom_route("/tracking/alerts", methods=["GET"])
+async def get_form_alerts(request: Request) -> JSONResponse:
+    """Get all form alerts across all sessions"""
+    return JSONResponse({
+        "alerts": [alert.dict() for alert in form_alerts],
+        "total_alerts": len(form_alerts)
+    })
+
+@mcp.custom_route("/tracking/alerts/{session_id}", methods=["GET"])
+async def get_session_alerts(request: Request) -> JSONResponse:
+    """Get form alerts for a specific session"""
+    session_id = request.path_params["session_id"]
+    session_alerts = [alert for alert in form_alerts if alert.session_id == session_id]
+    
+    return JSONResponse({
+        "session_id": session_id,
+        "alerts": [alert.dict() for alert in session_alerts],
+        "total_alerts": len(session_alerts)
     })
 
 def get_or_create_browser_session(session_id: str) -> BrowserSession:
@@ -175,7 +232,8 @@ Security & Background (Example Answers):
         - If you encounter captcha, retry the operation
         - Continue until the form is completely filled and submitted
         - Never stop until the task is fully completed
-        - In case of confusion, mark it false or N/A (if compulsory) and use the alert tool to mark it for user's attention later on.
+        - When data is missing, unclear, or you need to use placeholder values, use the alert_uncertain_data tool to flag the field for manual review
+        - Only use placeholder data when absolutely necessary to pass form validation
 
         FORM DATA TO USE:
         {form_data} {form_url}"""
@@ -212,7 +270,8 @@ Security & Background (Example Answers):
                     llm=llm,
                     browser_session=browser_session,
                     max_retires=5,
-                    retry_delay=10
+                    retry_delay=10,
+                    additional_tools=[alert_uncertain_data]
                 )
 
                 # Execute the automation
