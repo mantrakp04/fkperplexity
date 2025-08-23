@@ -1,9 +1,10 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { authTables } from "@convex-dev/auth/server";
 
 export default defineSchema({
-  // DS-160 data collection records
-  collections: defineTable({
+  ...authTables,
+  forms: defineTable({
     // Call identification
     callId: v.string(),
 
@@ -17,9 +18,10 @@ export default defineSchema({
 
     // Timestamps
     completedAt: v.optional(v.string()),
-  }),
+    userId: v.optional(v.id("users")),
+  }).index("by_user_id", ["userId"]),
   transcripts: defineTable({
-    connectionId: v.string(),
-    transcript: v.string(),
-  }).index("by_connection_id", ["connectionId"]),
+    formId: v.id("forms"),
+    chunk: v.string(),
+  }).index("by_form_id", ["formId"]),
 });

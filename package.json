@@ -23,6 +23,8 @@
   "author": "Your Name",
   "license": "MIT",
   "dependencies": {
+    "@auth/core": "0.37.0",
+    "@convex-dev/auth": "^0.0.88",
     "@vapi-ai/server-sdk": "^0.10.0",
     "@vapi-ai/web": "^2.3.9",
     "convex": "^1.13.0",

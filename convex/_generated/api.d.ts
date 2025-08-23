@@ -13,7 +13,9 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
-import type * as ds160 from "../ds160.js";
+import type * as auth from "../auth.js";
+import type * as funcs from "../funcs.js";
+import type * as http from "../http.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -24,7 +26,9 @@ import type * as ds160 from "../ds160.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
-  ds160: typeof ds160;
+  auth: typeof auth;
+  funcs: typeof funcs;
+  http: typeof http;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,
