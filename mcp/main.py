@@ -1,4 +1,3 @@
-import sys
 import time
 from typing import Dict
 from browser_use import Agent, BrowserSession
@@ -6,6 +5,8 @@ from browser_use.llm.anthropic.chat import ChatAnthropic
 from fastmcp import FastMCP
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 
 load_dotenv()
 
@@ -29,41 +30,60 @@ mcp = FastMCP(
 
 automation_status: Dict[str, AutomationStatus] = {}
 
-@mcp.custom_route(path="/tracking/status/{session_id}", method="GET")
-def get_automation_status(session_id: str):
+@mcp.custom_route("/tracking/status/{session_id}", methods=["GET"])
+async def get_automation_status(request: Request) -> JSONResponse:
     """Get the current status of an automation session"""
+    session_id = request.path_params["session_id"]
     if session_id not in automation_status:
-        return {
+        return JSONResponse({
             "session_id": session_id,
             "status": "not_found",
             "message": "No automation found for this session ID"
-        }
+        })
     
-    return automation_status[session_id]
+    return JSONResponse(automation_status[session_id].dict())
 
-@mcp.custom_route(path="/tracking/status", method="GET")
-def get_all_automation_status():
+@mcp.custom_route("/tracking/status", methods=["GET"])
+async def get_all_automation_status(request: Request) -> JSONResponse:
     """Get the status of all automation sessions"""
-    return {
-        "sessions": automation_status,
+    return JSONResponse({
+        "sessions": {k: v.dict() for k, v in automation_status.items()},
         "total_sessions": len(automation_status)
-    }
+    })
 
 def get_or_create_browser_session(session_id: str) -> BrowserSession:
     """Get or create a persistent browser session based on ID"""
-    return BrowserSession(
+    from browser_use.browser.profile import BrowserProfile
+    
+    profile = BrowserProfile(
         keep_alive=True,
         user_data_dir=f'~/.config/browseruse/profiles/{session_id}',
         viewport={"width": 1280, "height": 1024},
         minimum_wait_page_load_time=0.5,
         maximum_wait_page_load_time=2.0,
-        device_scale_factor=1.5
+        device_scale_factor=1.5,
+        args=[
+            "--force-device-scale-factor=1.5",
+        ]
+    )
+    
+    return BrowserSession(
+        id=session_id,
+        browser_profile=profile
     )
 
-@mcp.custom_route(path="/automated_form_filler", method="POST")
-@mcp.tool(name="automated_form_filler", description="Automatically fill out web forms using browser automation with provided form data and instructions")
-async def main(id: str, form_name: str = "DS-160", form_url: str = "ceac.state.gov/genniv/", form_data: str = """
-Example Input:
+@mcp.custom_route("/automated_form_filler", methods=["POST"])
+async def main(request: Request) -> JSONResponse:
+    # Extract parameters from request body
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    
+    id = body.get("id", "default_session")
+    form_name = body.get("form_name", "DS-160")
+    form_url = body.get("form_url", "ceac.state.gov/genniv/")
+    form_data = body.get("form_data", """Example Input:
 
 Personal Information:
 - Full Name: Johnathan Michael Doe
@@ -111,7 +131,9 @@ Security & Background (Example Answers):
 - Have you ever been arrested? No
 - Do you have specialized skills in weapons/explosives? No
 - Have you ever been involved in terrorist activities? No
-"""):
+- Have you ever used other names (i.e., maiden, religious, professional, alias, etc.)? No
+- Do you have a telecode that represents your name? No
+""")
     # Initialize status tracking
     automation_status[id] = AutomationStatus(
         session_id=id,
@@ -126,12 +148,10 @@ Security & Background (Example Answers):
     
     try:
         # Update status to model initialization
-        automation_status[id].update({
-            "status": "initializing",
-            "current_step": "creating_llm_model",
-            "progress": 10,
-            "message": "Initializing language model..."
-        })
+        automation_status[id].status = "initializing"
+        automation_status[id].current_step = "creating_llm_model"
+        automation_status[id].progress = 10
+        automation_status[id].message = "Initializing language model..."
         
         # Create language model instance
         # llm = ChatOpenAI(
@@ -155,17 +175,16 @@ Security & Background (Example Answers):
         - If you encounter captcha, retry the operation
         - Continue until the form is completely filled and submitted
         - Never stop until the task is fully completed
+        - In case of confusion, mark it false or N/A (if compulsory) and use the alert tool to mark it for user's attention later on.
 
         FORM DATA TO USE:
-        {form_data}"""
+        {form_data} {form_url}"""
         
         # Update status to browser session creation
-        automation_status[id].update({
-            "status": "initializing",
-            "current_step": "creating_browser_session",
-            "progress": 20,
-            "message": "Creating browser session..."
-        })
+        automation_status[id].status = "initializing"
+        automation_status[id].current_step = "creating_browser_session"
+        automation_status[id].progress = 20
+        automation_status[id].message = "Creating browser session..."
         
         # Get or create browser session
         browser_session = get_or_create_browser_session(id)
@@ -173,23 +192,19 @@ Security & Background (Example Answers):
         async def run_automation():
             try:
                 # Update status to starting browser
-                automation_status[id].update({
-                    "status": "running",
-                    "current_step": "starting_browser",
-                    "progress": 30,
-                    "message": "Starting browser session..."
-                })
+                automation_status[id].status = "running"
+                automation_status[id].current_step = "starting_browser"
+                automation_status[id].progress = 30
+                automation_status[id].message = "Starting browser session..."
                 
                 # Start the session
                 await browser_session.start()
                 
                 # Update status to running automation
-                automation_status[id].update({
-                    "status": "running",
-                    "current_step": "form_automation",
-                    "progress": 50,
-                    "message": f"Running form automation for {form_name}..."
-                })
+                automation_status[id].status = "running"
+                automation_status[id].current_step = "form_automation"
+                automation_status[id].progress = 50
+                automation_status[id].message = f"Running form automation for {form_name}..."
                 
                 # Create and run the automation agent
                 agent = Agent(
@@ -204,54 +219,47 @@ Security & Background (Example Answers):
                 result = await agent.run(max_steps=1000)
                 
                 # Update status to completed
-                automation_status[id].update({
-                    "status": "completed",
-                    "current_step": "finished",
-                    "progress": 100,
-                    "message": "Automation completed successfully",
-                    "end_time": time.time(),
-                    "result": str(result) if result else "No result returned"
-                })
+                automation_status[id].status = "completed"
+                automation_status[id].current_step = "finished"
+                automation_status[id].progress = 100
+                automation_status[id].message = "Automation completed successfully"
+                automation_status[id].end_time = time.time()
+                automation_status[id].result = str(result) if result else "No result returned"
                 
                 return result
                 
             except Exception as e:
                 # Update status to error
-                automation_status[id].update({
-                    "status": "error",
-                    "current_step": "error_occurred",
-                    "progress": automation_status[id].get("progress", 0),
-                    "message": f"Error during automation: {str(e)}",
-                    "end_time": time.time(),
-                    "error": str(e)
-                })
+                automation_status[id].status = "error"
+                automation_status[id].current_step = "error_occurred"
+                automation_status[id].message = f"Error during automation: {str(e)}"
+                automation_status[id].end_time = time.time()
+                automation_status[id].error = str(e)
                 raise
             finally:
-                # Close session when done
-                await browser_session.close()
+                # Stop session when done
+                await browser_session.stop()
         
         # Execute the automation
         result = await run_automation()
         if result.is_done() and not result.is_successful():
-            automation_status[id].update({
-                "status": "error",
-                "current_step": "fatal_error",
-                "message": f"Fatal error: {str(result.error)}",
-                "end_time": time.time(),
-                "error": str(result.error)
-            })
+            automation_status[id].status = "error"
+            automation_status[id].current_step = "fatal_error"
+            automation_status[id].message = f"Fatal error: {str(result.error)}"
+            automation_status[id].end_time = time.time()
+            automation_status[id].error = str(result.error)
         
     except Exception as e:
         # Update status to error if not already updated
-        if id in automation_status and automation_status[id].get("status") != "error":
-            automation_status[id].update({
-                "status": "error",
-                "current_step": "fatal_error",
-                "message": f"Fatal error: {str(e)}",
-                "end_time": time.time(),
-                "error": str(e)
-            })
-        sys.exit(1)
+        if id in automation_status and automation_status[id].status != "error":
+            automation_status[id].status = "error"
+            automation_status[id].current_step = "fatal_error"
+            automation_status[id].message = f"Fatal error: {str(e)}"
+            automation_status[id].end_time = time.time()
+            automation_status[id].error = str(e)
+        return JSONResponse({"error": str(e)}, status_code=500)
+    
+    return JSONResponse(automation_status[id].model_dump())
 
 if __name__ == "__main__":
     mcp.run(transport="sse", host="0.0.0.0", port=8000)
