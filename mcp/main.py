@@ -7,57 +7,68 @@ from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from starlette.requests import Request
 from starlette.responses import JSONResponse
+from utils import (
+    StatusManager, 
+    validate_session_id,
+    format_duration
+)
 
 load_dotenv()
 
-class AutomationStatus(BaseModel):
-    session_id: str
-    status: str
-    form_name: str
-    form_url: str
-    start_time: float
-    current_step: str
-    progress: int = Field(ge=0, le=100)
-    message: str
-    end_time: float = None
-    result: str = None
-    error: str = None
-
-class FormAlert(BaseModel):
-    session_id: str
-    field_name: str
-    expected_value: str
-    actual_value: str
-    reason: str
-    timestamp: float = Field(default_factory=time.time)
+# Import models from utils
+from utils import AutomationStatus, FormAlert
 
 mcp = FastMCP(
     name="Browser Automation Service", 
     instructions="Automated web form filling service with real-time status tracking."
 )
 
-automation_status: Dict[str, AutomationStatus] = {}
-form_alerts: List[FormAlert] = []
+# Initialize status manager
+status_manager = StatusManager()
 
 @mcp.custom_route("/tracking/status/{session_id}", methods=["GET"])
 async def get_automation_status(request: Request) -> JSONResponse:
     """Get the current status of an automation session"""
     session_id = request.path_params["session_id"]
-    if session_id not in automation_status:
+    
+    if not validate_session_id(session_id):
+        return JSONResponse(
+            {"error": "Invalid session ID format"},
+            status_code=400
+        )
+    
+    status = status_manager.get_status(session_id)
+    if not status:
         return JSONResponse({
             "session_id": session_id,
             "status": "not_found",
             "message": "No automation found for this session ID"
         })
     
-    return JSONResponse(automation_status[session_id].dict())
+    response_data = status.model_dump()
+    
+    # Add computed fields
+    if status.start_time:
+        response_data["duration"] = format_duration(status.start_time, status.end_time)
+    
+    return JSONResponse(response_data)
 
 @mcp.custom_route("/tracking/status", methods=["GET"])
-async def get_all_automation_status(request: Request) -> JSONResponse:
+async def get_all_automation_status(_: Request) -> JSONResponse:
     """Get the status of all automation sessions"""
+    all_statuses = status_manager.get_all_statuses()
+    
+    sessions_data = {}
+    for session_id, status in all_statuses.items():
+        status_data = status.model_dump()
+        # Add duration info
+        if status.start_time:
+            status_data["duration"] = format_duration(status.start_time, status.end_time)
+        sessions_data[session_id] = status_data
+    
     return JSONResponse({
-        "sessions": {k: v.dict() for k, v in automation_status.items()},
-        "total_sessions": len(automation_status)
+        "sessions": sessions_data,
+        "total_sessions": len(all_statuses)
     })
 
 def alert_uncertain_data(field_name: str, expected_value: str, actual_value: str, reason: str, session_id: str = "default_session") -> str:
@@ -76,7 +87,11 @@ def alert_uncertain_data(field_name: str, expected_value: str, actual_value: str
     Returns:
         Confirmation message about the alert being logged
     """
-    alert = FormAlert(
+    # Validate inputs
+    if not validate_session_id(session_id):
+        session_id = "default_session"
+    
+    alert = status_manager.add_alert(
         session_id=session_id,
         field_name=field_name,
         expected_value=expected_value,
@@ -84,43 +99,105 @@ def alert_uncertain_data(field_name: str, expected_value: str, actual_value: str
         reason=reason
     )
     
-    form_alerts.append(alert)
-    
     return f"Alert logged: Field '{field_name}' flagged for review. Used '{actual_value}' but expected '{expected_value}'. Reason: {reason}"
 
 @mcp.custom_route("/tracking/alerts", methods=["GET"])
-async def get_form_alerts(request: Request) -> JSONResponse:
+async def get_form_alerts(_: Request) -> JSONResponse:
     """Get all form alerts across all sessions"""
+    all_alerts = status_manager.get_all_alerts()
+    
     return JSONResponse({
-        "alerts": [alert.dict() for alert in form_alerts],
-        "total_alerts": len(form_alerts)
+        "alerts": [alert.model_dump() for alert in all_alerts],
+        "total_alerts": len(all_alerts)
     })
 
 @mcp.custom_route("/tracking/alerts/{session_id}", methods=["GET"])
 async def get_session_alerts(request: Request) -> JSONResponse:
     """Get form alerts for a specific session"""
     session_id = request.path_params["session_id"]
-    session_alerts = [alert for alert in form_alerts if alert.session_id == session_id]
+    
+    if not validate_session_id(session_id):
+        return JSONResponse(
+            {"error": "Invalid session ID format"},
+            status_code=400
+        )
+    
+    session_alerts = status_manager.get_session_alerts(session_id)
     
     return JSONResponse({
         "session_id": session_id,
-        "alerts": [alert.dict() for alert in session_alerts],
+        "alerts": [alert.model_dump() for alert in session_alerts],
         "total_alerts": len(session_alerts)
     })
 
+@mcp.custom_route("/tracking/summary/{session_id}", methods=["GET"])
+async def get_session_summary(request: Request) -> JSONResponse:
+    """Get complete summary for a session including status and alerts"""
+    session_id = request.path_params["session_id"]
+    
+    if not validate_session_id(session_id):
+        return JSONResponse(
+            {"error": "Invalid session ID format"},
+            status_code=400
+        )
+    
+    summary = status_manager.get_session_summary(session_id)
+    if not summary:
+        return JSONResponse({
+            "session_id": session_id,
+            "status": "not_found",
+            "message": "No session found with this ID"
+        })
+    
+    # Add duration info if available
+    if summary["status"].get("start_time"):
+        summary["status"]["duration"] = format_duration(
+            summary["status"]["start_time"], 
+            summary["status"].get("end_time")
+        )
+    
+    return JSONResponse(summary)
+
+@mcp.custom_route("/tracking/cleanup/{session_id}", methods=["DELETE"])
+async def cleanup_session_data(request: Request) -> JSONResponse:
+    """Clean up all data for a specific session"""
+    session_id = request.path_params["session_id"]
+    
+    if not validate_session_id(session_id):
+        return JSONResponse(
+            {"error": "Invalid session ID format"},
+            status_code=400
+        )
+    
+    success = status_manager.clear_session_data(session_id)
+    
+    return JSONResponse({
+        "session_id": session_id,
+        "cleaned": success,
+        "message": "Session data cleaned successfully" if success else "No data found for session"
+    })
+
 def get_or_create_browser_session(session_id: str) -> BrowserSession:
-    """Get or create a persistent browser session based on ID"""
+    """Get or create a persistent browser session based on ID with improved timeout and stability settings"""
     from browser_use.browser.profile import BrowserProfile
     
     profile = BrowserProfile(
         keep_alive=True,
         user_data_dir=f'~/.config/browseruse/profiles/{session_id}',
         viewport={"width": 1280, "height": 1024},
-        minimum_wait_page_load_time=0.5,
-        maximum_wait_page_load_time=2.0,
+        minimum_wait_page_load_time=1.0,  # Increased for stability
+        maximum_wait_page_load_time=5.0,  # Increased for stability
+        wait_for_network_idle_page_load_time=2.0,  # Wait for network idle
         device_scale_factor=1.5,
+        default_timeout=45000,  # 45 seconds timeout
+        default_navigation_timeout=60000,  # 60 seconds navigation timeout
+        wait_between_actions=1.0,  # Wait between actions
         args=[
             "--force-device-scale-factor=1.5",
+            "--disable-blink-features=AutomationControlled",  # Reduce detection
+            "--disable-extensions-except",
+            "--disable-plugins-discovery",
+            "--no-first-run"
         ]
     )
     
@@ -191,24 +268,29 @@ Security & Background (Example Answers):
 - Have you ever used other names (i.e., maiden, religious, professional, alias, etc.)? No
 - Do you have a telecode that represents your name? No
 """)
-    # Initialize status tracking
-    automation_status[id] = AutomationStatus(
+    # Validate session ID
+    if not validate_session_id(id):
+        return JSONResponse(
+            {"error": "Invalid session ID format"},
+            status_code=400
+        )
+    
+    # Initialize status tracking with helper
+    status_manager.create_status(
         session_id=id,
-        status="starting",
         form_name=form_name,
         form_url=form_url,
-        start_time=time.time(),
-        current_step="initializing", 
-        progress=0,
-        message="Automation starting...",
+        initial_message="Automation starting..."
     )
     
     try:
         # Update status to model initialization
-        automation_status[id].status = "initializing"
-        automation_status[id].current_step = "creating_llm_model"
-        automation_status[id].progress = 10
-        automation_status[id].message = "Initializing language model..."
+        status_manager.update_status(
+            session_id=id,
+            status="initializing",
+            current_step="creating_llm_model",
+            message="Initializing language model..."
+        )
         
         # Create language model instance
         # llm = ChatOpenAI(
@@ -221,28 +303,46 @@ Security & Background (Example Answers):
             temperature=0.2,
         )
         
-        # Create automation instructions
+        # Create automation instructions with improved error handling and form filling guidance
         instructions = f"""Fill out the {form_name} form at {form_url} using the provided data.
         
-        INSTRUCTIONS:
+        CRITICAL INSTRUCTIONS:
         - Navigate to the specified URL: {form_url}
+        - Wait for pages to fully load before interacting with elements
         - Fill out all form fields accurately using the provided data
-        - Handle any pop-ups, confirmations, or navigation steps
+        - Handle any pop-ups, confirmations, or navigation steps carefully
         - Use click tool for buttons and form interactions
-        - If you encounter captcha, retry the operation
+        - If you encounter captcha, wait and retry the operation
         - Continue until the form is completely filled and submitted
         - Never stop until the task is fully completed
-        - When data is missing, unclear, or you need to use placeholder values, use the alert_uncertain_data tool to flag the field for manual review
+        
+        DATA HANDLING RULES:
+        - When data is missing, unclear, or you need to use placeholder values, ALWAYS use the alert_uncertain_data tool to flag the field for later review
         - Only use placeholder data when absolutely necessary to pass form validation
-
+        - For dates, use the exact format required by the form (check placeholder text)
+        - For dropdowns, select the closest matching option available
+        - For required fields with no data, use "N/A" or similar and flag with alert tool
+        
+        ERROR HANDLING:
+        - If a page doesn't load properly, wait 3 seconds and try again
+        - If elements are not found, scroll to find them or refresh the page
+        - If form submission fails, check for validation errors and correct them
+        - Use the wait action liberally when pages are loading
+        - If stuck, try alternative navigation paths
+        
         FORM DATA TO USE:
-        {form_data} {form_url}"""
+        {form_data}
+        
+        Target URL: {form_url}
+        Session ID for alerts: {id}"""
         
         # Update status to browser session creation
-        automation_status[id].status = "initializing"
-        automation_status[id].current_step = "creating_browser_session"
-        automation_status[id].progress = 20
-        automation_status[id].message = "Creating browser session..."
+        status_manager.update_status(
+            session_id=id,
+            status="initializing",
+            current_step="creating_browser_session",
+            message="Creating browser session..."
+        )
         
         # Get or create browser session
         browser_session = get_or_create_browser_session(id)
@@ -250,50 +350,76 @@ Security & Background (Example Answers):
         async def run_automation():
             try:
                 # Update status to starting browser
-                automation_status[id].status = "running"
-                automation_status[id].current_step = "starting_browser"
-                automation_status[id].progress = 30
-                automation_status[id].message = "Starting browser session..."
+                status_manager.update_status(
+                    session_id=id,
+                    status="running",
+                    current_step="starting_browser",
+                    message="Starting browser session..."
+                )
                 
                 # Start the session
                 await browser_session.start()
                 
                 # Update status to running automation
-                automation_status[id].status = "running"
-                automation_status[id].current_step = "form_automation"
-                automation_status[id].progress = 50
-                automation_status[id].message = f"Running form automation for {form_name}..."
+                status_manager.update_status(
+                    session_id=id,
+                    status="running",
+                    current_step="form_automation",
+                    message=f"Running form automation for {form_name}..."
+                )
                 
-                # Create and run the automation agent
+                # Create and run the automation agent with improved configuration
                 agent = Agent(
                     task=instructions,
                     llm=llm,
                     browser_session=browser_session,
-                    max_retires=5,
-                    retry_delay=10,
-                    additional_tools=[alert_uncertain_data]
+                    max_failures=5,  # Increased failure tolerance
+                    retry_delay=15,  # Increased retry delay
+                    max_actions_per_step=8,  # Reduced actions per step for stability
+                    additional_tools=[alert_uncertain_data],
+                    use_vision=True,  # Enable vision for better element detection
+                    extend_system_message="""IMPORTANT FORM FILLING CONTEXT:
+                    - You are filling out government forms that require extreme accuracy
+                    - Every field matters and errors can cause application rejection
+                    - When uncertain about any data, use the alert_uncertain_data tool immediately
+                    - Handle date fields with special care - check the required format first"""
                 )
 
-                # Execute the automation
-                result = await agent.run(max_steps=1000)
+                # Execute the automation with progress tracking
+                async def progress_hook(agent_obj):
+                    """Track progress and update status"""
+                    try:
+                        current_step = len(agent_obj.history) if hasattr(agent_obj, 'history') else 0
+                        # Simple progress tracking
+                        status_manager.update_status(
+                            session_id=id,
+                            message=f"Processing step {current_step}..."
+                        )
+                    except Exception as e:
+                        print(f"Progress hook error: {e}")
+                
+                result = await agent.run(max_steps=500, on_step_start=progress_hook)  # Reduced max steps
                 
                 # Update status to completed
-                automation_status[id].status = "completed"
-                automation_status[id].current_step = "finished"
-                automation_status[id].progress = 100
-                automation_status[id].message = "Automation completed successfully"
-                automation_status[id].end_time = time.time()
-                automation_status[id].result = str(result) if result else "No result returned"
+                status_manager.update_status(
+                    session_id=id,
+                    status="completed",
+                    current_step="finished",
+                    message="Automation completed successfully",
+                    result=str(result) if result else "No result returned"
+                )
                 
                 return result
                 
             except Exception as e:
                 # Update status to error
-                automation_status[id].status = "error"
-                automation_status[id].current_step = "error_occurred"
-                automation_status[id].message = f"Error during automation: {str(e)}"
-                automation_status[id].end_time = time.time()
-                automation_status[id].error = str(e)
+                status_manager.update_status(
+                    session_id=id,
+                    status="error",
+                    current_step="error_occurred",
+                    message=f"Error during automation: {str(e)}",
+                    error=str(e)
+                )
                 raise
             finally:
                 # Stop session when done
@@ -302,23 +428,33 @@ Security & Background (Example Answers):
         # Execute the automation
         result = await run_automation()
         if result.is_done() and not result.is_successful():
-            automation_status[id].status = "error"
-            automation_status[id].current_step = "fatal_error"
-            automation_status[id].message = f"Fatal error: {str(result.error)}"
-            automation_status[id].end_time = time.time()
-            automation_status[id].error = str(result.error)
+            status_manager.update_status(
+                session_id=id,
+                status="error",
+                current_step="fatal_error",
+                message=f"Fatal error: {str(result.error)}",
+                error=str(result.error)
+            )
         
     except Exception as e:
         # Update status to error if not already updated
-        if id in automation_status and automation_status[id].status != "error":
-            automation_status[id].status = "error"
-            automation_status[id].current_step = "fatal_error"
-            automation_status[id].message = f"Fatal error: {str(e)}"
-            automation_status[id].end_time = time.time()
-            automation_status[id].error = str(e)
+        current_status = status_manager.get_status(id)
+        if current_status and current_status.status != "error":
+            status_manager.update_status(
+                session_id=id,
+                status="error",
+                current_step="fatal_error",
+                message=f"Fatal error: {str(e)}",
+                error=str(e)
+            )
         return JSONResponse({"error": str(e)}, status_code=500)
     
-    return JSONResponse(automation_status[id].model_dump())
+    final_status = status_manager.get_status(id)
+    if final_status:
+        response_data = final_status.model_dump()
+        return JSONResponse(response_data)
+    else:
+        return JSONResponse({"error": "Failed to retrieve final status"}, status_code=500)
 
 if __name__ == "__main__":
     mcp.run(transport="sse", host="0.0.0.0", port=8000)
