@@ -194,19 +194,17 @@ def get_or_create_browser_session(session_id: str) -> BrowserSession:
         keep_alive=True,
         user_data_dir=f'~/.config/browseruse/profiles/{session_id}',
         viewport={"width": 1280, "height": 1024},
-        minimum_wait_page_load_time=1.0,  # Increased for stability
-        maximum_wait_page_load_time=5.0,  # Increased for stability
-        wait_for_network_idle_page_load_time=2.0,  # Wait for network idle
+        minimum_wait_page_load_time=2.0,  # Increased for better stability
+        maximum_wait_page_load_time=15.0,  # Much more generous timeout
+        wait_for_network_idle_page_load_time=2.0,  # Wait longer for network idle
+        default_timeout=45000,  # 90 seconds timeout (was 45s)
+        default_navigation_timeout=60000,  # 2 minutes navigation timeout (was 60s)
+        wait_between_actions=.3,  # Longer wait between actions for stability
         device_scale_factor=1.5,
-        default_timeout=45000,  # 45 seconds timeout
-        default_navigation_timeout=60000,  # 60 seconds navigation timeout
-        wait_between_actions=1.0,  # Wait between actions
         args=[
             "--force-device-scale-factor=1.5",
-            "--disable-blink-features=AutomationControlled",  # Reduce detection
             "--disable-extensions-except",
             "--disable-plugins-discovery",
-            "--no-first-run"
         ]
     )
     
@@ -316,7 +314,7 @@ Security & Background (Example Answers):
             temperature=0.2,
         )
         
-        # Create automation instructions with improved error handling and form filling guidance
+        # Create automation instructions with enhanced error handling and stability guidance
         instructions = f"""Fill out the {form_name} form at {form_url} using the provided data.
         
         CRITICAL INSTRUCTIONS:
@@ -325,7 +323,6 @@ Security & Background (Example Answers):
         - Fill out all form fields accurately using the provided data
         - Handle any pop-ups, confirmations, or navigation steps carefully
         - Use click tool for buttons and form interactions
-        - If you encounter captcha, wait and retry the operation
         - Continue until the form is completely filled and submitted
         - Never stop until the task is fully completed
         
@@ -335,14 +332,8 @@ Security & Background (Example Answers):
         - For dates, use the exact format required by the form (check placeholder text)
         - For dropdowns, select the closest matching option available
         - For required fields with no data, use "N/A" or similar and flag with alert tool
-        
-        ERROR HANDLING:
-        - If a page doesn't load properly, wait 3 seconds and try again
-        - If elements are not found, scroll to find them or refresh the page
         - If form submission fails, check for validation errors and correct them
-        - Use the wait action liberally when pages are loading
-        - If stuck, try alternative navigation paths
-        
+
         FORM DATA TO USE:
         {form_data}
         
@@ -370,9 +361,7 @@ Security & Background (Example Answers):
                     message="Starting browser session..."
                 )
                 
-                # Start the session
                 await browser_session.start()
-                
                 # Update status to running automation
                 status_manager.update_status(
                     session_id=id,
@@ -380,39 +369,35 @@ Security & Background (Example Answers):
                     current_step="form_automation",
                     message=f"Running form automation for {form_name}..."
                 )
-                
+                # Create a controller with our custom action
+                from browser_use.controller.service import Controller
+                controller = Controller()
+
+                # Register the alert_uncertain_data function as a custom action
+                @controller.action("Alert when form data is uncertain or placeholder values are used")
+                def alert_uncertain_data_action(field_name: str, expected_value: str, actual_value: str, reason: str, session_id: str = id) -> str:
+                    return alert_uncertain_data(field_name, expected_value, actual_value, reason, session_id)
+
                 # Create and run the automation agent with improved configuration
                 agent = Agent(
                     task=instructions,
+                    controller=controller,
                     llm=llm,
                     browser_session=browser_session,
-                    max_failures=5,  # Increased failure tolerance
-                    retry_delay=15,  # Increased retry delay
-                    max_actions_per_step=8,  # Reduced actions per step for stability
-                    additional_tools=[alert_uncertain_data],
+                    max_failures=10,  # Significantly increased failure tolerance
+                    retry_delay=30,  # Much longer retry delay for CDP recovery
+                    max_actions_per_step=10,  # Reduced for better stability and control
                     use_vision=True,  # Enable vision for better element detection
-                    extend_system_message="""IMPORTANT FORM FILLING CONTEXT:
+                    generate_gif=False,  # Disable GIF generation to reduce overhead
+                    extend_system_message="""CRITICAL FORM FILLING AND STABILITY CONTEXT:
                     - You are filling out government forms that require extreme accuracy
                     - Every field matters and errors can cause application rejection
                     - When uncertain about any data, use the alert_uncertain_data tool immediately
                     - Handle date fields with special care - check the required format first"""
                 )
 
-                # Execute the automation with progress tracking
-                async def progress_hook(agent_obj):
-                    """Track progress and update status"""
-                    try:
-                        current_step = len(agent_obj.history) if hasattr(agent_obj, 'history') else 0
-                        # Simple progress tracking
-                        status_manager.update_status(
-                            session_id=id,
-                            message=f"Processing step {current_step}..."
-                        )
-                    except Exception as e:
-                        print(f"Progress hook error: {e}")
-                
-                result = await agent.run(max_steps=500, on_step_start=progress_hook)  # Reduced max steps
-                
+                result = await agent.run(max_steps=1000)
+
                 # Update status to completed
                 status_manager.update_status(
                     session_id=id,
@@ -421,9 +406,8 @@ Security & Background (Example Answers):
                     message="Automation completed successfully",
                     result=str(result) if result else "No result returned"
                 )
-                
+
                 return result
-                
             except Exception as e:
                 # Update status to error
                 status_manager.update_status(
@@ -435,8 +419,13 @@ Security & Background (Example Answers):
                 )
                 raise
             finally:
-                # Stop session when done
-                await browser_session.stop()
+                # Stop session when done with error handling
+                try:
+                    if browser_session:
+                        await browser_session.stop()
+                except Exception as cleanup_error:
+                    print(f"Warning: Error during browser session cleanup: {cleanup_error}")
+                    # Don't raise cleanup errors, just log them
         
         # Execute the automation
         result = await run_automation()
