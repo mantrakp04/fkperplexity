@@ -228,100 +228,58 @@ async def main(request: Request) -> JSONResponse:
         body = {}
     
     id = body.get("id", "default_session")
-    form_name = body.get("form_name", "J-1 Visa Waiver (DS-3035)")
+    form_name = body.get("form_name", "DS-160")
     form_url = body.get("form_url", "ceac.state.gov/genniv/")
     form_data = body.get("form_data", """Example Input:
 
 Personal Information:
-- Title: Dr.
-- Surname: [As in Passport]
-- Given Names: [As in Passport, First and Middle]
-- Maiden Name: [If Any]
-- Other Names: [Aliases, previous married names, religious names, professional names, etc.]
-- Date of Birth: [mm-dd-yyyy]
-- Gender: Male/Female
-- City of Birth: [City]
-- Country of Birth: [Country]
-- Citizenship Country: [Country]
-- Legal Permanent Residence Country: [Country]
+- Full Name: Johnathan Michael Doe
+- Gender: Male
+- Marital Status: Single
+- Date of Birth: 15-March-1990
+- City of Birth: Springfield
+- Country of Birth: Exampleland
+- Nationality: Examplelandian
 
-Contact Information:
-- Current Address: [Street, City, State/Province, ZIP/Postal Code, Country]
-- Home Phone: [Phone Number]
-- Business Phone: [Phone Number]
-- Facsimile: [Fax Number]
-- Email Address: [Email]
-- Last U.S. City and State: [If not currently living in U.S.]
+Passport Information:
+- Passport Number: X1234567
+- Passport Book Number: N/A
+- Issuing Country: Exampleland
+- Place of Issue: Springfield
+- Date of Issue: 01-January-2020
+- Expiration Date: 01-January-2030
 
-Attorney/Representation:
-- Are you represented by an attorney or organization? Yes/No
-- Attorney/Representative/Organization Name: [Name]
-- Attorney Address: [Street, City, State, ZIP Code, Country]
-- Business Phone/Extension: [Phone]
-- Facsimile: [Fax]
-- Email Address: [Email]
+Travel Information:
+- Purpose of Trip: Tourism
+- Intended Date of Arrival: 10-October-2025
+- Intended Length of Stay: 2 weeks
+- U.S. Address: 123 Example Street, New York, NY 10001
+- Person/Entity Paying for Trip: Self
 
-Exchange Visitor Program Information:
-- SEVIS Number: [Number]
-- Program Number: [Number]
-- Purpose of the Form: [Purpose]
-- Begin Date: [mm-dd-yyyy]
-- End Date: [mm-dd-yyyy]
-- Subject/Field Code: [Code]
-- Funding Amount: [Amount]
-- Did program include U.S. Government funds, own government funds, or international organization funds? Yes/No
+U.S. Contact Information:
+- Contact Person: Jane Smith (Friend)
+- Address: 456 Demo Avenue, Los Angeles, CA 90001
+- Phone: +1-555-123-4567
+- Email: jane.smith@example.com
 
-Waiver Request Basis:
-- I am requesting a waiver recommendation based on: [Check one]
-  * Exceptional Hardship
-  * Interested Government Agency (non-physician)
-  * State Health Agency Request
-  * Interested Government Agency (Physician)
-  * No Objection Statement
-  * Persecution
+Family Information:
+- Father's Name: Robert Doe
+- Mother's Name: Emily Doe
+- Spouse's Name: N/A
 
-Dependent Information:
-- Does this application include J-2 dependents? Yes/No
-- If yes, provide: Surname, Given Name, Date of Birth, Country of Birth, Relationship
+Work/Education/Training:
+- Primary Occupation: Software Engineer
+- Employer: ExampleTech Solutions
+- Employer Address: 789 Innovation Blvd, Springfield, Exampleland
+- Monthly Income: 5,000 Exampleland Dollars
 
-Spouse Information:
-- Is your spouse in J-1 status? Yes/No
-- If spouse has applied for waiver: Surname, Given Name, Date of Birth, Country of Birth, J Waiver Case Number
-
-Entry Information:
-- Date and place of first entry into U.S. on J-1 visa: [Date, Port of Entry, State of Entry, Visa Control Number, Issuing Post]
-- Alien Registration Number: [If any]
-- I-94 Number: [Number]
-
-Previous Applications:
-- Have you ever applied for J visa waiver recommendation or advisory opinion? Yes/No
-- If yes, provide: Case Number, Date Received, Fee Paid, G-28
-
-Mailing Preferences:
-- I request all correspondence be sent to: [Check one]
-  * Current Address
-  * Attorney Address
-  * Mailing Address
-
-Supporting Documents:
-- Application fee: $215 (cashier's check or money order)
-- Statement demonstrating eligibility for waiver
-- Copies of all DS-2019 forms
-- G-28 form (if represented by attorney)
-- Two self-addressed stamped envelopes
-- Copy of passport data page
-- Additional pages for complete responses
-
-Certification:
-- I certify that I have read and understood all questions and answers are true and correct
-- Signature of Exchange Visitor: [Signature]
-- Date: [Date]
-
-Mailing Address:
-U.S. Department of State
-Waiver Review Division
-P.O. Box 952137
-St. Louis, MO 63195-2137
+Security & Background (Example Answers):
+- Do you belong to a clan or tribe? No
+- Have you ever been arrested? No
+- Do you have specialized skills in weapons/explosives? No
+- Have you ever been involved in terrorist activities? No
+- Have you ever used other names (i.e., maiden, religious, professional, alias, etc.)? No
+- Do you have a telecode that represents your name? No
 """)
     # Validate session ID
     if not validate_session_id(id):

@@ -197,35 +197,14 @@ function SignedInContent() {
           model: "gpt-3.5-turbo",
           messages: [{ 
             role: "system", 
-            content: `You are a professional J-1 visa waiver application assistant. Your role is to collect comprehensive information for the DS-3035 form (J-1 Visa Waiver). 
-
-KEY GUIDELINES:
-- Ask ONE detailed question at a time
-- Be thorough but patient
-- Collect information in logical order: Personal Info → Contact Info → Program Details → Waiver Basis
-- For each section, gather ALL required fields before moving to the next
-- If information is missing or unclear, ask for clarification
-- Be empathetic as this is often a stressful process for applicants
-
-INFORMATION TO COLLECT:
-1. Personal Information (title, names, birth details, citizenship)
-2. Contact Information (addresses, phones, email) 
-3. Attorney/Representation details (if applicable)
-4. Exchange Visitor Program Information (SEVIS, program details)
-5. Waiver Request Basis (which category applies)
-6. Dependent and Spouse Information
-7. Entry Information (I-94, dates, ports)
-8. Previous Applications
-9. Mailing Preferences
-
-Always confirm information before proceeding to the next section.` 
+            content: "You are a helpful visa application assistant. Be professional and ask one question at a time." 
           }]
         },
         voice: {
           provider: "openai",
           voiceId: "shimmer"
         },
-        firstMessage: "Hello! I'm your J-1 visa waiver application assistant. I'll help you complete your DS-3035 form comprehensively. Let's begin with your personal information - what is your full title and complete name as it appears in your passport?"
+        firstMessage: "Hello! I'm your visa application assistant. Let's start with your full name - what is your complete name?"
       };
       
       await vapi.start(assistantConfig);
@@ -254,7 +233,7 @@ Always confirm information before proceeding to the next section.`
             },
             body: JSON.stringify({
               id: sessionId,
-              form_name: "J-1 Visa Waiver (DS-3035)",
+              form_name: "DS-160",
               form_url: "ceac.state.gov/genniv/",
               form_data: conversationData.map(msg => 
                 `${msg.role}: ${msg.transcript} (${msg.timestamp})`
@@ -292,8 +271,8 @@ Always confirm information before proceeding to the next section.`
   return (
     <div className="container">
       <div className="logo">VA</div>
-      <h1>J-1 Visa Waiver Assistant</h1>
-      <p className="subtitle">Complete your comprehensive DS-3035 J-1 visa waiver application through an intelligent voice interview with our AI assistant.</p>
+      <h1>Visa Application Assistant</h1>
+      <p className="subtitle">Complete your visa application through a natural conversation with our AI assistant.</p>
       
       <div className="auth-section">
         <p>✅ You are signed in!</p>
@@ -406,13 +385,12 @@ Always confirm information before proceeding to the next section.`
       )}
       
       <div className="instructions">
-        <h3>Ready to start your J-1 Visa Waiver interview:</h3>
+        <h3>Ready to start your DS-160 interview:</h3>
         <ul>
-          <li>Click "Start Visa Interview" to begin your DS-3035 form collection</li>
+          <li>Click "Start Visa Interview" to begin</li>
           <li>Allow microphone access when prompted</li>
-          <li>The AI assistant will comprehensively collect all required information</li>
-          <li>Interview covers: Personal Info, Program Details, Waiver Basis, and more</li>
-          <li>Your progress is automatically saved and tracked</li>
+          <li>The AI assistant will guide you through all questions</li>
+          <li>Your progress is automatically saved</li>
         </ul>
       </div>
       
@@ -442,11 +420,11 @@ function SignedOutContent() {
   return (
     <div className="container">
       <div className="logo">VA</div>
-      <h1>J-1 Visa Waiver Assistant</h1>
-      <p className="subtitle">Complete your comprehensive DS-3035 J-1 visa waiver application through an intelligent voice interview with our AI assistant.</p>
+      <h1>Visa Application Assistant</h1>
+      <p className="subtitle">Complete your visa application through a natural conversation with our AI assistant.</p>
       
       <div className="auth-section">
-        <p>👋 Welcome! Please sign in to start your J-1 visa waiver interview.</p>
+        <p>👋 Welcome! Please sign in to start your visa interview.</p>
         <button 
           onClick={() => signIn("anonymous")} 
           className="auth-button"
