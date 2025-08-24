@@ -5,6 +5,9 @@
   "main": "index.ts",
   "scripts": {
     "dev": "bun run --hot index.ts",
+    "dev:react": "vite",
+    "build:react": "vite build",
+    "preview": "vite preview",
     "start": "bun run index.ts",
     "build": "bun build index.ts --outdir ./dist",
     "webhook": "bun run webhook-server.ts",
@@ -37,8 +40,10 @@
   "devDependencies": {
     "@types/cors": "^2.8.13",
     "@types/express": "^4.17.17",
+    "@vitejs/plugin-react": "^4.7.0",
     "bun-types": "latest",
-    "typescript": "^5.2.0"
+    "typescript": "^5.9.2",
+    "vite": "^6.3.5"
   },
   "engines": {
     "node": ">=18.0.0",

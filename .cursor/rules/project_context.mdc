@@ -1,0 +1,52 @@
+# DS-160 Visa Assistant Project Context
+
+## Project Overview
+Building a voice-powered DS-160 visa application assistant that:
+1. Conducts interactive voice interviews using Vapi
+2. Collects structured visa application data
+3. Stores conversation transcripts and responses in Convex
+4. Provides authenticated user sessions
+5. Supports multiple languages
+
+## Tech Stack
+- **Frontend**: React + TypeScript + Vite
+- **Backend**: Convex (serverless)
+- **Voice AI**: Vapi Web SDK
+- **Authentication**: Convex Auth (anonymous provider)
+- **Deployment**: Local development setup
+
+## Key Features
+- Multi-language voice interviews (12+ languages)
+- Real-time conversation transcription
+- Structured DS-160 data collection via function calling
+- User authentication and session management
+- Webhook integration for voice event handling
+
+## Current Architecture
+```
+Frontend (React) ←→ Convex (Database/Auth) ←→ Webhook Server ←→ Vapi (Voice AI)
+```
+
+## Development Workflow
+1. Convex development server: `npm run convex:dev`
+2. React frontend: `VITE_CONVEX_URL=... npm run dev:react`
+3. Webhook server: `npm run webhook`
+4. All servers run concurrently for full functionality
+
+## Important Files
+- `src/App.tsx` - Main React app with auth flow
+- `convex/schema.ts` - Database schema with auth tables
+- `convex/auth.ts` - Authentication configuration
+- `webhook-server.ts` - Vapi webhook handler
+- `index-old.html` - Original HTML/JS version (backup)
+
+## Environment Setup
+- Convex URL: `https://grateful-ladybug-357.convex.cloud`
+- Local webhook: `http://localhost:3000/webhook/vapi`
+- React dev server: `http://127.0.0.1:3001/`
+
+## Recent Changes
+- Migrated from vanilla HTML/JS to React + Auth
+- Fixed Convex Auth integration (no Authenticated/Unauthenticated components)
+- Added multi-language support with proper voice configurations
+- Resolved VAPI 400 errors by fixing assistant configuration format

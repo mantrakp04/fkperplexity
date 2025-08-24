@@ -1,0 +1,37 @@
+.App {
+  width: 100%;
+}
+
+.call-button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.call-button:disabled:hover {
+  background: #ccc;
+  transform: none;
+  box-shadow: none;
+}
+
+.end-button {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+}
+
+.end-button:hover {
+  background: linear-gradient(135deg, #ee5a52 0%, #ff6b6b 100%);
+}
+
+.status-section {
+  margin: 20px 0;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 10px;
+  border-left: 4px solid #667eea;
+}
+
+.status {
+  margin: 0;
+  color: #333;
+  font-weight: 500;
+}

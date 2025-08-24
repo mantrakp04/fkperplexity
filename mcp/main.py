@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from starlette.requests import Request
 from starlette.responses import JSONResponse
+from starlette.middleware.cors import CORSMiddleware
 from utils import (
     StatusManager, 
     validate_session_id,
@@ -22,6 +23,14 @@ mcp = FastMCP(
     name="Browser Automation Service", 
     instructions="Automated web form filling service with real-time status tracking."
 )
+
+# Helper function to add CORS headers
+def add_cors_headers(response: JSONResponse) -> JSONResponse:
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    return response
 
 # Initialize status manager
 status_manager = StatusManager()
@@ -206,8 +215,12 @@ def get_or_create_browser_session(session_id: str) -> BrowserSession:
         browser_profile=profile
     )
 
-@mcp.custom_route("/automated_form_filler", methods=["POST"])
+@mcp.custom_route("/automated_form_filler", methods=["POST", "OPTIONS"])
 async def main(request: Request) -> JSONResponse:
+    # Handle preflight requests
+    if request.method == "OPTIONS":
+        response = JSONResponse({"status": "ok"})
+        return add_cors_headers(response)
     # Extract parameters from request body
     try:
         body = await request.json()
@@ -447,14 +460,17 @@ Security & Background (Example Answers):
                 message=f"Fatal error: {str(e)}",
                 error=str(e)
             )
-        return JSONResponse({"error": str(e)}, status_code=500)
+        response = JSONResponse({"error": str(e)}, status_code=500)
+        return add_cors_headers(response)
     
     final_status = status_manager.get_status(id)
     if final_status:
         response_data = final_status.model_dump()
-        return JSONResponse(response_data)
+        response = JSONResponse(response_data)
+        return add_cors_headers(response)
     else:
-        return JSONResponse({"error": "Failed to retrieve final status"}, status_code=500)
+        response = JSONResponse({"error": "Failed to retrieve final status"}, status_code=500)
+        return add_cors_headers(response)
 
 if __name__ == "__main__":
     mcp.run(transport="sse", host="0.0.0.0", port=8000)
