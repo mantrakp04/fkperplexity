@@ -35,3 +35,241 @@
   color: #333;
   font-weight: 500;
 }
+
+/* Automation Status Styles */
+.automation-status {
+  margin: 20px 0;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+}
+
+.automation-status h3 {
+  margin: 0 0 15px 0;
+  color: #495057;
+  font-size: 1.1em;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: bold;
+  font-size: 0.9em;
+  margin-bottom: 10px;
+}
+
+.status-badge.initializing {
+  background: #ffeaa7;
+  color: #2d3436;
+}
+
+.status-badge.running {
+  background: #74b9ff;
+  color: white;
+}
+
+.status-badge.completed {
+  background: #00b894;
+  color: white;
+}
+
+.status-badge.error {
+  background: #e17055;
+  color: white;
+}
+
+.status-message, .current-step, .duration {
+  margin: 8px 0;
+  color: #6c757d;
+  font-size: 0.95em;
+}
+
+.error-details {
+  background: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 6px;
+  padding: 10px;
+  margin-top: 10px;
+}
+
+.error-message {
+  margin: 0;
+  color: #721c24;
+  font-weight: 500;
+}
+
+/* Session Alerts Styles */
+.alerts-section {
+  margin: 20px 0;
+  padding: 20px;
+  background: #fff3cd;
+  border-radius: 12px;
+  border: 1px solid #ffeaa7;
+}
+
+.alerts-section h3 {
+  margin: 0 0 15px 0;
+  color: #856404;
+  font-size: 1.1em;
+}
+
+.alerts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.alert-item {
+  background: white;
+  padding: 15px;
+  border-radius: 8px;
+  border-left: 4px solid #ffc107;
+}
+
+.alert-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.alert-header strong {
+  color: #495057;
+  font-size: 1em;
+}
+
+.alert-timestamp {
+  font-size: 0.85em;
+  color: #6c757d;
+}
+
+.alert-reason {
+  margin: 8px 0;
+  color: #856404;
+  font-style: italic;
+}
+
+.alert-values {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.alert-values span {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+
+.alert-values .expected {
+  background: #d1ecf1;
+  color: #0c5460;
+}
+
+.alert-values .actual {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+/* Session Management Styles */
+.session-management {
+  margin: 20px 0;
+  padding: 20px;
+  background: #e3f2fd;
+  border-radius: 12px;
+  border: 1px solid #bbdefb;
+}
+
+.session-management h4 {
+  margin: 0 0 15px 0;
+  color: #1565c0;
+  font-size: 1em;
+  word-break: break-all;
+}
+
+.session-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.session-buttons button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9em;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.refresh-button {
+  background: #42a5f5;
+  color: white;
+}
+
+.refresh-button:hover {
+  background: #1e88e5;
+}
+
+.alerts-button {
+  background: #ffa726;
+  color: white;
+}
+
+.alerts-button:hover {
+  background: #ff9800;
+}
+
+.summary-button {
+  background: #66bb6a;
+  color: white;
+}
+
+.summary-button:hover {
+  background: #4caf50;
+}
+
+.cleanup-button {
+  background: #ef5350;
+  color: white;
+}
+
+.cleanup-button:hover {
+  background: #f44336;
+}
+
+.session-buttons button:disabled {
+  background: #bdbdbd;
+  color: #757575;
+  cursor: not-allowed;
+}
+
+.session-buttons button:disabled:hover {
+  background: #bdbdbd;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .alert-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+  
+  .alert-values {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .session-buttons {
+    flex-direction: column;
+  }
+  
+  .session-buttons button {
+    width: 100%;
+    text-align: center;
+  }
+}

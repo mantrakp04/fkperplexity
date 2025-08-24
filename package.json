@@ -26,15 +26,8 @@
   "author": "Your Name",
   "license": "MIT",
   "dependencies": {
-<<<<<<< Updated upstream
-    "@auth/core": "0.37.0",
-    "@convex-dev/auth": "^0.0.88",
-=======
     "@auth/core": "^0.37.0",
     "@convex-dev/auth": "^0.0.88",
-    "@types/react": "^19.1.11",
-    "@types/react-dom": "^19.1.7",
->>>>>>> Stashed changes
     "@vapi-ai/server-sdk": "^0.10.0",
     "@vapi-ai/web": "^2.3.9",
     "@vitejs/plugin-react": "^4.7.0",
@@ -51,6 +44,8 @@
   "devDependencies": {
     "@types/cors": "^2.8.13",
     "@types/express": "^4.17.17",
+    "@types/react": "^19.1.11",
+    "@types/react-dom": "^19.1.7",
     "@vitejs/plugin-react": "^4.7.0",
     "bun-types": "latest",
     "typescript": "^5.9.2",

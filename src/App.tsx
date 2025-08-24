@@ -23,6 +23,9 @@ function SignedInContent() {
   const [callStatus, setCallStatus] = useState('idle');
   const [isCallActive, setIsCallActive] = useState(false);
   const [conversationData, setConversationData] = useState([]);
+  const [automationStatus, setAutomationStatus] = useState(null);
+  const [currentSessionId, setCurrentSessionId] = useState(null);
+  const [sessionAlerts, setSessionAlerts] = useState([]);
   
   useEffect(() => {
     // Load VAPI SDK
@@ -85,6 +88,99 @@ function SignedInContent() {
     });
     
   }, [vapi]);
+
+  // Function to check automation status
+  const checkAutomationStatus = async (sessionId) => {
+    if (!sessionId) return;
+    
+    try {
+      const response = await fetch(`http://localhost:8000/tracking/status/${sessionId}`);
+      if (response.ok) {
+        const statusData = await response.json();
+        setAutomationStatus(statusData);
+        return statusData;
+      }
+    } catch (error) {
+      console.error('Error checking automation status:', error);
+    }
+    return null;
+  };
+
+  // Function to get session alerts
+  const getSessionAlerts = async (sessionId) => {
+    if (!sessionId) return;
+    
+    try {
+      const response = await fetch(`http://localhost:8000/tracking/alerts/${sessionId}`);
+      if (response.ok) {
+        const alertsData = await response.json();
+        setSessionAlerts(alertsData.alerts || []);
+        return alertsData;
+      }
+    } catch (error) {
+      console.error('Error fetching session alerts:', error);
+    }
+    return null;
+  };
+
+  // Function to get session summary
+  const getSessionSummary = async (sessionId) => {
+    if (!sessionId) return;
+    
+    try {
+      const response = await fetch(`http://localhost:8000/tracking/summary/${sessionId}`);
+      if (response.ok) {
+        const summaryData = await response.json();
+        return summaryData;
+      }
+    } catch (error) {
+      console.error('Error fetching session summary:', error);
+    }
+    return null;
+  };
+
+  // Function to cleanup session data
+  const cleanupSessionData = async (sessionId) => {
+    if (!sessionId) return;
+    
+    try {
+      const response = await fetch(`http://localhost:8000/tracking/cleanup/${sessionId}`, {
+        method: 'DELETE'
+      });
+      if (response.ok) {
+        const cleanupData = await response.json();
+        return cleanupData;
+      }
+    } catch (error) {
+      console.error('Error cleaning up session data:', error);
+    }
+    return null;
+  };
+
+  // Polling function for automation status updates
+  useEffect(() => {
+    let statusInterval;
+    
+    if (currentSessionId && automationStatus && 
+        ['running', 'initializing'].includes(automationStatus.status)) {
+      statusInterval = setInterval(async () => {
+        const updatedStatus = await checkAutomationStatus(currentSessionId);
+        if (updatedStatus && ['completed', 'error'].includes(updatedStatus.status)) {
+          // Stop polling when automation completes
+          clearInterval(statusInterval);
+          
+          // Fetch alerts for the completed session
+          await getSessionAlerts(currentSessionId);
+        }
+      }, 3000); // Poll every 3 seconds
+    }
+    
+    return () => {
+      if (statusInterval) {
+        clearInterval(statusInterval);
+      }
+    };
+  }, [currentSessionId, automationStatus]);
   
   const startInterview = async () => {
     if (!vapi) {
@@ -127,13 +223,16 @@ function SignedInContent() {
         // Trigger MCP Browser Automation Service
         try {
           setCallStatus('Processing interview data...');
+          const sessionId = `visa_interview_${Date.now()}`;
+          setCurrentSessionId(sessionId);
+          
           const mcpResponse = await fetch('http://localhost:8000/automated_form_filler', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              id: `visa_interview_${Date.now()}`,
+              id: sessionId,
               form_name: "DS-160",
               form_url: "ceac.state.gov/genniv/",
               form_data: conversationData.map(msg => 
@@ -148,7 +247,10 @@ function SignedInContent() {
           if (mcpResponse.ok) {
             const responseData = await mcpResponse.json();
             console.log('MCP Browser Automation triggered successfully:', responseData);
-            setCallStatus(`✅ Interview completed! Automation started (Session: ${responseData.session_id || 'N/A'})`);
+            setCallStatus(`✅ Interview completed! Form filling automation started...`);
+            
+            // Start checking status immediately
+            setTimeout(() => checkAutomationStatus(sessionId), 1000);
           } else {
             const errorData = await mcpResponse.text();
             console.error('MCP API call failed:', mcpResponse.status, errorData);
@@ -182,6 +284,103 @@ function SignedInContent() {
       {callStatus !== 'idle' && (
         <div className="status-section">
           <p className="status">{callStatus}</p>
+        </div>
+      )}
+
+      {/* Automation Status Display */}
+      {automationStatus && (
+        <div className="automation-status">
+          <h3>🤖 Form Filling Progress</h3>
+          <div className={`status-badge ${automationStatus.status}`}>
+            {automationStatus.status?.toUpperCase()}
+          </div>
+          {automationStatus.message && (
+            <p className="status-message">{automationStatus.message}</p>
+          )}
+          {automationStatus.current_step && (
+            <p className="current-step">Step: {automationStatus.current_step}</p>
+          )}
+          {automationStatus.duration && (
+            <p className="duration">Duration: {automationStatus.duration}</p>
+          )}
+          {automationStatus.status === 'error' && automationStatus.error && (
+            <div className="error-details">
+              <p className="error-message">❌ {automationStatus.error}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Session Alerts Display */}
+      {sessionAlerts.length > 0 && (
+        <div className="alerts-section">
+          <h3>⚠️ Form Filling Alerts ({sessionAlerts.length})</h3>
+          <div className="alerts-list">
+            {sessionAlerts.map((alert, index) => (
+              <div key={index} className="alert-item">
+                <div className="alert-header">
+                  <strong>{alert.field_name}</strong>
+                  <span className="alert-timestamp">{new Date(alert.timestamp).toLocaleTimeString()}</span>
+                </div>
+                <p className="alert-reason">{alert.reason}</p>
+                <div className="alert-values">
+                  <span className="expected">Expected: {alert.expected_value}</span>
+                  <span className="actual">Used: {alert.actual_value}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Session Management */}
+      {currentSessionId && (
+        <div className="session-management">
+          <h4>Session: {currentSessionId}</h4>
+          <div className="session-buttons">
+            <button 
+              onClick={() => checkAutomationStatus(currentSessionId)}
+              className="refresh-button"
+              disabled={!currentSessionId}
+            >
+              🔄 Refresh Status
+            </button>
+            <button 
+              onClick={() => getSessionAlerts(currentSessionId)}
+              className="alerts-button"
+              disabled={!currentSessionId}
+            >
+              ⚠️ Check Alerts
+            </button>
+            <button 
+              onClick={async () => {
+                const summary = await getSessionSummary(currentSessionId);
+                if (summary) {
+                  console.log('Session Summary:', summary);
+                  alert(`Session Summary:\nStatus: ${summary.status?.status}\nAlerts: ${summary.alerts?.length || 0}\nDuration: ${summary.status?.duration || 'N/A'}`);
+                }
+              }}
+              className="summary-button"
+              disabled={!currentSessionId}
+            >
+              📋 View Summary
+            </button>
+            <button 
+              onClick={async () => {
+                if (confirm('This will permanently delete all session data. Continue?')) {
+                  await cleanupSessionData(currentSessionId);
+                  setCurrentSessionId(null);
+                  setAutomationStatus(null);
+                  setSessionAlerts([]);
+                  setCallStatus('Session data cleaned up.');
+                }
+              }}
+              className="cleanup-button danger"
+              disabled={!currentSessionId}
+            >
+              🗑️ Cleanup Session
+            </button>
+          </div>
         </div>
       )}
       
